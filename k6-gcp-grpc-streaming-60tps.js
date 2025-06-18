@@ -3,7 +3,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-const CLIENT_BASE_URL = 'http://34.129.37.178:9090';
+const CLIENT_BASE_URL = __ENV.CLIENT_BASE_URL || 'http://localhost:9090';
 const grpcStreamingRequests = new Counter('grpc_streaming_requests_total');
 const grpcStreamingErrorRate = new Rate('grpc_streaming_error_rate');
 const grpcStreamingResponseTime = new Trend('grpc_streaming_response_time');

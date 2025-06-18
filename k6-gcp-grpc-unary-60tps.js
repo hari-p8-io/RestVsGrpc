@@ -3,7 +3,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-const CLIENT_BASE_URL = 'http://34.129.37.178:9090';
+const CLIENT_BASE_URL = __ENV.CLIENT_BASE_URL || 'http://localhost:9090';
 const grpcUnaryRequests = new Counter('grpc_unary_requests_total');
 const grpcUnaryErrorRate = new Rate('grpc_unary_error_rate');
 const grpcUnaryResponseTime = new Trend('grpc_unary_response_time');

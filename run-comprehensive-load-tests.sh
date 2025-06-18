@@ -5,6 +5,10 @@
 
 set -e
 
+# Environment variable configuration
+CLIENT_BASE_URL=${CLIENT_BASE_URL:-"http://localhost:9090"}
+MAIN_SERVICE_URL=${MAIN_SERVICE_URL:-"http://localhost:8080"}
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -14,6 +18,25 @@ NC='\033[0m' # No Color
 
 echo_color() {
     echo -e "${1}${2}${NC}"
+}
+
+# Validate environment variables
+validate_environment() {
+    echo_color $BLUE "🔧 Validating environment configuration..."
+    
+    if [[ "$CLIENT_BASE_URL" == "http://localhost:9090" ]]; then
+        echo_color $YELLOW "⚠️  Using default CLIENT_BASE_URL: $CLIENT_BASE_URL"
+        echo_color $YELLOW "   Set CLIENT_BASE_URL environment variable for production use"
+    else
+        echo_color $GREEN "✅ CLIENT_BASE_URL configured: $CLIENT_BASE_URL"
+    fi
+    
+    if [[ "$MAIN_SERVICE_URL" == "http://localhost:8080" ]]; then
+        echo_color $YELLOW "⚠️  Using default MAIN_SERVICE_URL: $MAIN_SERVICE_URL"
+        echo_color $YELLOW "   Set MAIN_SERVICE_URL environment variable for production use"
+    else
+        echo_color $GREEN "✅ MAIN_SERVICE_URL configured: $MAIN_SERVICE_URL"
+    fi
 }
 
 # Function to check for service errors
@@ -50,8 +73,8 @@ run_test() {
     echo_color $YELLOW "📊 Script: $script_name"
     echo_color $YELLOW "⏰ Start time: $(date)"
     
-    # Run the K6 test
-    if k6 run $script_name; then
+    # Run the K6 test with environment variables
+    if CLIENT_BASE_URL="$CLIENT_BASE_URL" k6 run $script_name; then
         echo_color $GREEN "✅ $protocol test at $tps TPS completed successfully"
         
         # Check for service errors
@@ -82,7 +105,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-const CLIENT_BASE_URL = 'http://34.129.37.178:9090';
+const CLIENT_BASE_URL = __ENV.CLIENT_BASE_URL || 'http://localhost:9090';
 const restRequests = new Counter('rest_requests_total');
 const restErrorRate = new Rate('rest_error_rate');
 const restResponseTime = new Trend('rest_response_time');
@@ -145,7 +168,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-const CLIENT_BASE_URL = 'http://34.129.37.178:9090';
+const CLIENT_BASE_URL = __ENV.CLIENT_BASE_URL || 'http://localhost:9090';
 const grpcUnaryRequests = new Counter('grpc_unary_requests_total');
 const grpcUnaryErrorRate = new Rate('grpc_unary_error_rate');
 const grpcUnaryResponseTime = new Trend('grpc_unary_response_time');
@@ -208,7 +231,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-const CLIENT_BASE_URL = 'http://34.129.37.178:9090';
+const CLIENT_BASE_URL = __ENV.CLIENT_BASE_URL || 'http://localhost:9090';
 const grpcStreamingRequests = new Counter('grpc_streaming_requests_total');
 const grpcStreamingErrorRate = new Rate('grpc_streaming_error_rate');
 const grpcStreamingResponseTime = new Trend('grpc_streaming_response_time');
@@ -269,15 +292,18 @@ EOF
 echo_color $GREEN "🚀 Starting Comprehensive Load Testing Suite"
 echo_color $BLUE "📅 Test execution started at: $(date)"
 
+# Validate environment configuration
+validate_environment
+
 # Check if services are healthy before starting
 echo_color $BLUE "🔍 Checking service health..."
-if ! curl -s http://34.129.37.178:9090/actuator/health | grep -q "UP"; then
-    echo_color $RED "❌ Client service is not healthy"
+if ! curl -s "${CLIENT_BASE_URL}/actuator/health" | grep -q "UP"; then
+    echo_color $RED "❌ Client service is not healthy at ${CLIENT_BASE_URL}"
     exit 1
 fi
 
-if ! curl -s http://34.126.192.30:8080/camel/api/health | grep -q "UP"; then
-    echo_color $RED "❌ Main service is not healthy"
+if ! curl -s "${MAIN_SERVICE_URL}/camel/api/health" | grep -q "UP"; then
+    echo_color $RED "❌ Main service is not healthy at ${MAIN_SERVICE_URL}"
     exit 1
 fi
 

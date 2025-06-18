@@ -3,7 +3,7 @@ import http from 'k6/http';
 import { check, sleep } from 'k6';
 import { Counter, Rate, Trend } from 'k6/metrics';
 
-const CLIENT_BASE_URL = 'http://34.129.37.178:9090';
+const CLIENT_BASE_URL = __ENV.CLIENT_BASE_URL || 'http://localhost:9090';
 const restRequests = new Counter('rest_requests_total');
 const restErrorRate = new Rate('rest_error_rate');
 const restResponseTime = new Trend('rest_response_time');
