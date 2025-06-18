@@ -1,0 +1,192 @@
+[0;32m🧪 Running K6 Performance Tests on GKE...[0m
+[1;33m🔍 Checking if rest-grpc-service is ready...[0m
+NAME                TYPE           CLUSTER-IP      EXTERNAL-IP    PORT(S)                         AGE
+rest-grpc-service   LoadBalancer   34.118.226.27   34.129.198.4   8080:31787/TCP,6565:31678/TCP   66m
+[1;33m⏳ Waiting for external IP...[0m
+[0;32m🌐 External IP obtained: 34.129.198.4[0m
+[1;33m🔍 Testing service connectivity...[0m
+[0;32m✅ Service is responding![0m
+[0;34m🏥 Service Health Check:[0m
+{
+  "status": "UP",
+  "components": {
+    "camelHealth": {
+      "status": "UP",
+      "details": {
+        "name": "camel-health-check",
+        "context": "UP",
+        "context.data": {
+          "context.phase": "5",
+          "context.name": "camel-1",
+          "context.version": "4.4.0",
+          "context.status": "Started",
+          "check.kind": "ALL"
+        }
+      }
+    },
+    "camelLivenessState": {
+      "status": "UP"
+    },
+    "camelReadinessState": {
+      "status": "UP"
+    },
+    "db": {
+      "status": "UP",
+      "details": {
+        "database": "H2",
+        "validationQuery": "isValid()"
+      }
+    },
+    "diskSpace": {
+      "status": "UP",
+      "details": {
+        "total": 137140670464,
+        "free": 128349110272,
+        "threshold": 10485760,
+        "path": "/app/.",
+        "exists": true
+      }
+    },
+    "livenessState": {
+      "status": "UP"
+    },
+    "ping": {
+      "status": "UP"
+    },
+    "readinessState": {
+      "status": "UP"
+    }
+  },
+  "groups": [
+    "liveness",
+    "readiness"
+  ]
+}
+[0;32m🚀 Starting REST Performance Test...[0m
+job.batch/k6-rest-ramp-loadtest-gke created
+[1;33m⏳ Waiting for REST test to complete...[0m
+job.batch/k6-rest-ramp-loadtest-gke condition met
+[0;32m✅ REST test completed![0m
+[0;34m📊 REST Test Results:[0m
+
+         /\      Grafana   /‾‾/  
+    /\  /  \     |\  __   /  /   
+   /  \/    \    | |/ /  /   ‾‾\ 
+  /          \   |   (  |  (‾)  |
+ / __________ \  |_|\_\  \_____/ 
+
+     execution: local
+        script: k6-rest-cluster.js
+        output: -
+
+     scenarios: (100.00%) 1 scenario, 10 max VUs, 50s max duration (incl. graceful stop):
+              * default: 10 looping VUs for 20s (gracefulStop: 30s)
+
+
+running (01.0s), 10/10 VUs, 4 complete and 0 interrupted iterations
+default   [   5% ] 10 VUs  01.0s/20s
+
+running (02.0s), 10/10 VUs, 26 complete and 0 interrupted iterations
+default   [  10% ] 10 VUs  02.0s/20s
+
+running (03.0s), 10/10 VUs, 111 complete and 0 interrupted iterations
+default   [  15% ] 10 VUs  03.0s/20s
+
+running (04.0s), 10/10 VUs, 201 complete and 0 interrupted iterations
+default   [  20% ] 10 VUs  04.0s/20s
+
+running (05.0s), 10/10 VUs, 270 complete and 0 interrupted iterations
+default   [  25% ] 10 VUs  05.0s/20s
+
+running (06.0s), 10/10 VUs, 320 complete and 0 interrupted iterations
+default   [  30% ] 10 VUs  06.0s/20s
+
+running (07.0s), 10/10 VUs, 361 complete and 0 interrupted iterations
+default   [  35% ] 10 VUs  07.0s/20s
+
+running (08.0s), 10/10 VUs, 413 complete and 0 interrupted iterations
+default   [  40% ] 10 VUs  08.0s/20s
+
+running (09.0s), 10/10 VUs, 477 complete and 0 interrupted iterations
+default   [  45% ] 10 VUs  09.0s/20s
+
+running (10.0s), 10/10 VUs, 501 complete and 0 interrupted iterations
+default   [  50% ] 10 VUs  10.0s/20s
+
+running (11.0s), 10/10 VUs, 521 complete and 0 interrupted iterations
+default   [  55% ] 10 VUs  11.0s/20s
+
+running (12.0s), 10/10 VUs, 568 complete and 0 interrupted iterations
+default   [  60% ] 10 VUs  12.0s/20s
+
+running (13.0s), 10/10 VUs, 659 complete and 0 interrupted iterations
+default   [  65% ] 10 VUs  13.0s/20s
+
+running (14.0s), 10/10 VUs, 696 complete and 0 interrupted iterations
+default   [  70% ] 10 VUs  14.0s/20s
+
+running (15.0s), 10/10 VUs, 769 complete and 0 interrupted iterations
+default   [  75% ] 10 VUs  15.0s/20s
+
+running (16.0s), 10/10 VUs, 849 complete and 0 interrupted iterations
+default   [  80% ] 10 VUs  16.0s/20s
+
+running (17.0s), 10/10 VUs, 900 complete and 0 interrupted iterations
+default   [  85% ] 10 VUs  17.0s/20s
+
+running (18.0s), 10/10 VUs, 981 complete and 0 interrupted iterations
+default   [  90% ] 10 VUs  18.0s/20s
+
+running (19.0s), 10/10 VUs, 1062 complete and 0 interrupted iterations
+default   [  95% ] 10 VUs  19.0s/20s
+
+running (20.0s), 10/10 VUs, 1144 complete and 0 interrupted iterations
+default ↓ [ 100% ] 10 VUs  20s
+
+
+  █ THRESHOLDS 
+
+    http_req_duration
+    ✓ 'p(95)<1000' p(95)=194.28ms
+
+    http_req_failed
+    ✓ 'rate<0.1' rate=0.00%
+
+
+  █ TOTAL RESULTS 
+
+    checks_total.......................: 2308   114.036874/s
+    checks_succeeded...................: 99.22% 2290 out of 2308
+    checks_failed......................: 0.77%  18 out of 2308
+
+    ✓ status was 200
+    ✗ response time < 500ms
+      ↳  98% — ✓ 1136 / ✗ 18
+
+    HTTP
+    http_req_duration.......................................................: avg=39.7ms   min=2.77ms   med=10.87ms  max=1.47s p(90)=72.29ms  p(95)=194.28ms
+      { expected_response:true }............................................: avg=39.7ms   min=2.77ms   med=10.87ms  max=1.47s p(90)=72.29ms  p(95)=194.28ms
+    http_req_failed.........................................................: 0.00%  0 out of 1154
+    http_reqs...............................................................: 1154   57.018437/s
+
+    EXECUTION
+    iteration_duration......................................................: avg=173.78ms min=103.64ms med=115.69ms max=1.73s p(90)=252.59ms p(95)=388.86ms
+    iterations..............................................................: 1154   57.018437/s
+    vus.....................................................................: 10     min=10        max=10
+    vus_max.................................................................: 10     min=10        max=10
+
+    NETWORK
+    data_received...........................................................: 328 kB 16 kB/s
+    data_sent...............................................................: 254 kB 13 kB/s
+
+
+
+
+running (20.2s), 00/10 VUs, 1154 complete and 0 interrupted iterations
+default ✓ [ 100% ] 10 VUs  20s
+[1;33m🧹 Cleaning up REST test job...[0m
+job.batch "k6-rest-ramp-loadtest-gke" deleted
+[1;33m⏸️  Waiting 30 seconds before next test...[0m
+[0;32m🚀 Starting gRPC Performance Test...[0m
+job.batch/k6-grpc-ramp-loadtest-gke configured
+[1;33m⏳ Waiting for gRPC test to complete...[0m

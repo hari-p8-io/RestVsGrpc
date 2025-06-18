@@ -1,0 +1,450 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-quick-scripts
+  namespace: default
+data:
+  payload.proto: |
+    syntax = "proto3";
+    option java_multiple_files = true;
+    option java_package = "com.benchmark.service.grpc";
+    option java_outer_classname = "PayloadProto";
+
+    service PayloadService {
+      rpc SendPayload (InputPayload) returns (PayloadResponse);
+    }
+
+    message InputPayload {
+      string id = 1;
+      string content = 2;
+      string timestamp = 3;
+      string protocol = 4;
+    }
+
+    message PayloadResponse {
+      string status = 1;
+      string message = 2;
+    }
+  
+  k6-rest-20tps.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const rest_duration = new Trend('rest_duration');
+    export const rest_failed = new Rate('rest_failed');
+
+    export let options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 20,
+          timeUnit: '1s',
+          duration: '10s',
+          preAllocatedVUs: 5,
+          maxVUs: 20,
+        },
+      },
+      thresholds: {
+        rest_duration: ['p(95)<2000'],
+        rest_failed: ['rate<0.05'],
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed: ['rate<0.05'],
+      },
+    };
+
+    export default function () {
+      const startTime = Date.now();
+      const testId = `rest-20tps-${__VU}-${__ITER}-${startTime}`;
+
+      const url = 'http://rest-grpc-service.default.svc.cluster.local:8080/camel/api/payload';
+      const payload = JSON.stringify({
+        id: testId,
+        content: `REST 20TPS load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      const params = { headers: { 'Content-Type': 'application/json' } };
+      const start = Date.now();
+      let res = http.post(url, payload, params);
+      const duration = Date.now() - start;
+      
+      rest_duration.add(duration);
+      
+      const success = check(res, {
+        'status was 200': (r) => r.status === 200,
+        'response time < 2000ms': (r) => r.timings.duration < 2000,
+        'has correlation ID': (r) => {
+          try {
+            const body = JSON.parse(r.body);
+            return body && body.status === 'success' && body.message && body.message.includes('correlation ID:');
+          } catch (e) {
+            return false;
+          }
+        },
+      });
+
+      rest_failed.add(!success);
+      sleep(0.01);
+    }
+
+  k6-grpc-20tps.js: |
+    import grpc from 'k6/net/grpc';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const grpc_duration = new Trend('grpc_duration');
+    export const grpc_failed = new Rate('grpc_failed');
+
+    export let options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 20,
+          timeUnit: '1s',
+          duration: '10s',
+          preAllocatedVUs: 5,
+          maxVUs: 20,
+        },
+      },
+      thresholds: {
+        grpc_duration: ['p(95)<2000'],
+        grpc_failed: ['rate<0.05'],
+      },
+    };
+
+    const client = new grpc.Client();
+    client.load(['.'], 'payload.proto');
+
+    export default function () {
+      client.connect('rest-grpc-service.default.svc.cluster.local:6565', { 
+        plaintext: true,
+        timeout: '10s'
+      });
+
+      const startTime = Date.now();
+      const testId = `grpc-20tps-${__VU}-${__ITER}-${startTime}`;
+      
+      const payload = {
+        id: testId,
+        content: `gRPC 20TPS load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+      };
+
+      const start = Date.now();
+      let success = false;
+      
+      try {
+        const response = client.invoke('PayloadService/SendPayload', payload);
+        const duration = Date.now() - start;
+        grpc_duration.add(duration);
+        
+        if (response && response.status === grpc.StatusOK) {
+          success = true;
+        }
+        
+        check(response, {
+          'gRPC status is OK': (r) => r && r.status === grpc.StatusOK,
+          'response time < 2000ms': () => duration < 2000,
+          'has correlation ID': (r) => {
+            try {
+              return r && r.status === grpc.StatusOK && r.message && r.message.status === 'success' && r.message.message && r.message.message.includes('correlation ID:');
+            } catch (e) {
+              return false;
+            }
+          },
+        });
+        
+      } catch (e) {
+        const duration = Date.now() - start;
+        grpc_duration.add(duration);
+        success = false;
+      } finally {
+        grpc_failed.add(!success);
+        client.close();
+      }
+      
+      sleep(0.01);
+    }
+
+  k6-rest-80tps.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const rest_duration = new Trend('rest_duration');
+    export const rest_failed = new Rate('rest_failed');
+
+    export let options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 80,
+          timeUnit: '1s',
+          duration: '10s',
+          preAllocatedVUs: 20,
+          maxVUs: 80,
+        },
+      },
+      thresholds: {
+        rest_duration: ['p(95)<2000'],
+        rest_failed: ['rate<0.05'],
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed: ['rate<0.05'],
+      },
+    };
+
+    export default function () {
+      const startTime = Date.now();
+      const testId = `rest-80tps-${__VU}-${__ITER}-${startTime}`;
+
+      const url = 'http://rest-grpc-service.default.svc.cluster.local:8080/camel/api/payload';
+      const payload = JSON.stringify({
+        id: testId,
+        content: `REST 80TPS load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      const params = { headers: { 'Content-Type': 'application/json' } };
+      const start = Date.now();
+      let res = http.post(url, payload, params);
+      const duration = Date.now() - start;
+      
+      rest_duration.add(duration);
+      
+      const success = check(res, {
+        'status was 200': (r) => r.status === 200,
+        'response time < 2000ms': (r) => r.timings.duration < 2000,
+        'has correlation ID': (r) => {
+          try {
+            const body = JSON.parse(r.body);
+            return body && body.status === 'success' && body.message && body.message.includes('correlation ID:');
+          } catch (e) {
+            return false;
+          }
+        },
+      });
+
+      rest_failed.add(!success);
+      sleep(0.01);
+    }
+
+  k6-grpc-80tps.js: |
+    import grpc from 'k6/net/grpc';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const grpc_duration = new Trend('grpc_duration');
+    export const grpc_failed = new Rate('grpc_failed');
+
+    export let options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 80,
+          timeUnit: '1s',
+          duration: '10s',
+          preAllocatedVUs: 20,
+          maxVUs: 80,
+        },
+      },
+      thresholds: {
+        grpc_duration: ['p(95)<2000'],
+        grpc_failed: ['rate<0.05'],
+      },
+    };
+
+    const client = new grpc.Client();
+    client.load(['.'], 'payload.proto');
+
+    export default function () {
+      client.connect('rest-grpc-service.default.svc.cluster.local:6565', { 
+        plaintext: true,
+        timeout: '10s'
+      });
+
+      const startTime = Date.now();
+      const testId = `grpc-80tps-${__VU}-${__ITER}-${startTime}`;
+      
+      const payload = {
+        id: testId,
+        content: `gRPC 80TPS load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+      };
+
+      const start = Date.now();
+      let success = false;
+      
+      try {
+        const response = client.invoke('PayloadService/SendPayload', payload);
+        const duration = Date.now() - start;
+        grpc_duration.add(duration);
+        
+        if (response && response.status === grpc.StatusOK) {
+          success = true;
+        }
+        
+        check(response, {
+          'gRPC status is OK': (r) => r && r.status === grpc.StatusOK,
+          'response time < 2000ms': () => duration < 2000,
+          'has correlation ID': (r) => {
+            try {
+              return r && r.status === grpc.StatusOK && r.message && r.message.status === 'success' && r.message.message && r.message.message.includes('correlation ID:');
+            } catch (e) {
+              return false;
+            }
+          },
+        });
+        
+      } catch (e) {
+        const duration = Date.now() - start;
+        grpc_duration.add(duration);
+        success = false;
+      } finally {
+        grpc_failed.add(!success);
+        client.close();
+      }
+      
+      sleep(0.01);
+    }
+
+  k6-rest-100tps.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const rest_duration = new Trend('rest_duration');
+    export const rest_failed = new Rate('rest_failed');
+
+    export let options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 100,
+          timeUnit: '1s',
+          duration: '10s',
+          preAllocatedVUs: 25,
+          maxVUs: 100,
+        },
+      },
+      thresholds: {
+        rest_duration: ['p(95)<2000'],
+        rest_failed: ['rate<0.05'],
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed: ['rate<0.05'],
+      },
+    };
+
+    export default function () {
+      const startTime = Date.now();
+      const testId = `rest-100tps-${__VU}-${__ITER}-${startTime}`;
+
+      const url = 'http://rest-grpc-service.default.svc.cluster.local:8080/camel/api/payload';
+      const payload = JSON.stringify({
+        id: testId,
+        content: `REST 100TPS load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+      });
+
+      const params = { headers: { 'Content-Type': 'application/json' } };
+      const start = Date.now();
+      let res = http.post(url, payload, params);
+      const duration = Date.now() - start;
+      
+      rest_duration.add(duration);
+      
+      const success = check(res, {
+        'status was 200': (r) => r.status === 200,
+        'response time < 2000ms': (r) => r.timings.duration < 2000,
+        'has correlation ID': (r) => {
+          try {
+            const body = JSON.parse(r.body);
+            return body && body.status === 'success' && body.message && body.message.includes('correlation ID:');
+          } catch (e) {
+            return false;
+          }
+        },
+      });
+
+      rest_failed.add(!success);
+      sleep(0.01);
+    }
+
+  k6-grpc-100tps.js: |
+    import grpc from 'k6/net/grpc';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const grpc_duration = new Trend('grpc_duration');
+    export const grpc_failed = new Rate('grpc_failed');
+
+    export let options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 100,
+          timeUnit: '1s',
+          duration: '10s',
+          preAllocatedVUs: 25,
+          maxVUs: 100,
+        },
+      },
+      thresholds: {
+        grpc_duration: ['p(95)<2000'],
+        grpc_failed: ['rate<0.05'],
+      },
+    };
+
+    const client = new grpc.Client();
+    client.load(['.'], 'payload.proto');
+
+    export default function () {
+      client.connect('rest-grpc-service.default.svc.cluster.local:6565', { 
+        plaintext: true,
+        timeout: '10s'
+      });
+
+      const startTime = Date.now();
+      const testId = `grpc-100tps-${__VU}-${__ITER}-${startTime}`;
+      
+      const payload = {
+        id: testId,
+        content: `gRPC 100TPS load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+      };
+
+      const start = Date.now();
+      let success = false;
+      
+      try {
+        const response = client.invoke('PayloadService/SendPayload', payload);
+        const duration = Date.now() - start;
+        grpc_duration.add(duration);
+        
+        if (response && response.status === grpc.StatusOK) {
+          success = true;
+        }
+        
+        check(response, {
+          'gRPC status is OK': (r) => r && r.status === grpc.StatusOK,
+          'response time < 2000ms': () => duration < 2000,
+          'has correlation ID': (r) => {
+            try {
+              return r && r.status === grpc.StatusOK && r.message && r.message.status === 'success' && r.message.message && r.message.message.includes('correlation ID:');
+            } catch (e) {
+              return false;
+            }
+          },
+        });
+        
+      } catch (e) {
+        const duration = Date.now() - start;
+        grpc_duration.add(duration);
+        success = false;
+      } finally {
+        grpc_failed.add(!success);
+        client.close();
+      }
+      
+      sleep(0.01);
+    } 

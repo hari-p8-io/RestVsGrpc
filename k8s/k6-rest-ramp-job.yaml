@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-rest-ramp-loadtest-v2
+spec:
+  template:
+    spec:
+      containers:
+      - name: k6
+        image: k6-loadtest:latest
+        imagePullPolicy: Never
+        command: ["k6", "run", "k6-rest-ramp.js"]
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "500m"
+      restartPolicy: Never
+  backoffLimit: 1 

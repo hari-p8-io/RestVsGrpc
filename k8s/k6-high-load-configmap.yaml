@@ -1,0 +1,402 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: k6-high-load-scripts
+  namespace: default
+data:
+  payload.proto: |
+    syntax = "proto3";
+    option java_multiple_files = true;
+    option java_package = "com.benchmark.service.grpc";
+    option java_outer_classname = "PayloadProto";
+
+    service PayloadService {
+      rpc SendPayload (InputPayload) returns (PayloadResponse);
+    }
+
+    message InputPayload {
+      string id = 1;
+      string content = 2;
+      string timestamp = 3;
+      string protocol = 4;
+    }
+
+    message PayloadResponse {
+      string status = 1;
+      string message = 2;
+    }
+  
+  k6-rest-100tps.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const rest_duration = new Trend('rest_duration');
+    export const rest_failed = new Rate('rest_failed');
+
+    export const options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 100,
+          timeUnit: '1s',
+          duration: '60s',
+          preAllocatedVUs: 10,
+          maxVUs: 50,
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed: ['rate<0.1'],
+      },
+    };
+
+    export default function () {
+      const payload = {
+        id: `rest-${__VU}-${__ITER}`,
+        content: `High load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+        protocol: 'REST'
+      };
+
+      const correlationId = `corr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const response = http.post('http://34.126.192.30:8080/api/payload', JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Correlation-ID': correlationId,
+        },
+      });
+
+      const duration = response.timings.duration;
+      rest_duration.add(duration);
+      
+      const success = check(response, {
+        'status is 200': (r) => r.status === 200,
+        'response time < 2000ms': (r) => r.timings.duration < 2000,
+        'has correlation ID': (r) => r.headers['X-Correlation-ID'] === correlationId,
+      });
+      
+      if (!success) {
+        rest_failed.add(1);
+      } else {
+        rest_failed.add(0);
+      }
+    }
+
+  k6-grpc-100tps.js: |
+    import grpc from 'k6/net/grpc';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const grpc_duration = new Trend('grpc_duration');
+    export const grpc_failed = new Rate('grpc_failed');
+
+    const client = new grpc.Client();
+    client.load(['definitions'], 'payload.proto');
+
+    export const options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 100,
+          timeUnit: '1s',
+          duration: '60s',
+          preAllocatedVUs: 10,
+          maxVUs: 50,
+        },
+      },
+      thresholds: {
+        grpc_req_duration: ['p(95)<2000'],
+        grpc_failed: ['rate<0.1'],
+      },
+    };
+
+    export default function () {
+      client.connect('34.126.192.30:6565', {
+        plaintext: true,
+      });
+
+      const correlationId = `corr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const payload = {
+        id: `grpc-${__VU}-${__ITER}`,
+        content: `High load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+        protocol: 'gRPC'
+      };
+
+      const metadata = {
+        'x-correlation-id': correlationId,
+      };
+
+      const start = Date.now();
+      const response = client.invoke('PayloadService/SendPayload', payload, { metadata });
+      const duration = Date.now() - start;
+      
+      grpc_duration.add(duration);
+
+      const success = check(response, {
+        'gRPC status is OK': (r) => r.status === grpc.StatusOK,
+        'response time < 2000ms': (r) => duration < 2000,
+        'has correlation ID': (r) => r.metadata && r.metadata['x-correlation-id'] && r.metadata['x-correlation-id'][0] === correlationId,
+      });
+
+      if (!success) {
+        grpc_failed.add(1);
+      } else {
+        grpc_failed.add(0);
+      }
+
+      client.close();
+    }
+
+  k6-rest-300tps.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const rest_duration = new Trend('rest_duration');
+    export const rest_failed = new Rate('rest_failed');
+
+    export const options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 300,
+          timeUnit: '1s',
+          duration: '60s',
+          preAllocatedVUs: 20,
+          maxVUs: 100,
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed: ['rate<0.1'],
+      },
+    };
+
+    export default function () {
+      const payload = {
+        id: `rest-${__VU}-${__ITER}`,
+        content: `High load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+        protocol: 'REST'
+      };
+
+      const correlationId = `corr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const response = http.post('http://34.126.192.30:8080/api/payload', JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Correlation-ID': correlationId,
+        },
+      });
+
+      const duration = response.timings.duration;
+      rest_duration.add(duration);
+      
+      const success = check(response, {
+        'status is 200': (r) => r.status === 200,
+        'response time < 2000ms': (r) => r.timings.duration < 2000,
+        'has correlation ID': (r) => r.headers['X-Correlation-ID'] === correlationId,
+      });
+      
+      if (!success) {
+        rest_failed.add(1);
+      } else {
+        rest_failed.add(0);
+      }
+    }
+
+  k6-grpc-300tps.js: |
+    import grpc from 'k6/net/grpc';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const grpc_duration = new Trend('grpc_duration');
+    export const grpc_failed = new Rate('grpc_failed');
+
+    const client = new grpc.Client();
+    client.load(['definitions'], 'payload.proto');
+
+    export const options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 300,
+          timeUnit: '1s',
+          duration: '60s',
+          preAllocatedVUs: 20,
+          maxVUs: 100,
+        },
+      },
+      thresholds: {
+        grpc_req_duration: ['p(95)<2000'],
+        grpc_failed: ['rate<0.1'],
+      },
+    };
+
+    export default function () {
+      client.connect('34.126.192.30:6565', {
+        plaintext: true,
+      });
+
+      const correlationId = `corr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const payload = {
+        id: `grpc-${__VU}-${__ITER}`,
+        content: `High load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+        protocol: 'gRPC'
+      };
+
+      const metadata = {
+        'x-correlation-id': correlationId,
+      };
+
+      const start = Date.now();
+      const response = client.invoke('PayloadService/SendPayload', payload, { metadata });
+      const duration = Date.now() - start;
+      
+      grpc_duration.add(duration);
+
+      const success = check(response, {
+        'gRPC status is OK': (r) => r.status === grpc.StatusOK,
+        'response time < 2000ms': (r) => duration < 2000,
+        'has correlation ID': (r) => r.metadata && r.metadata['x-correlation-id'] && r.metadata['x-correlation-id'][0] === correlationId,
+      });
+
+      if (!success) {
+        grpc_failed.add(1);
+      } else {
+        grpc_failed.add(0);
+      }
+
+      client.close();
+    }
+
+  k6-rest-500tps.js: |
+    import http from 'k6/http';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const rest_duration = new Trend('rest_duration');
+    export const rest_failed = new Rate('rest_failed');
+
+    export const options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 500,
+          timeUnit: '1s',
+          duration: '60s',
+          preAllocatedVUs: 30,
+          maxVUs: 150,
+        },
+      },
+      thresholds: {
+        http_req_duration: ['p(95)<2000'],
+        http_req_failed: ['rate<0.1'],
+      },
+    };
+
+    export default function () {
+      const payload = {
+        id: `rest-${__VU}-${__ITER}`,
+        content: `High load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+        protocol: 'REST'
+      };
+
+      const correlationId = `corr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const response = http.post('http://34.126.192.30:8080/api/payload', JSON.stringify(payload), {
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Correlation-ID': correlationId,
+        },
+      });
+
+      const duration = response.timings.duration;
+      rest_duration.add(duration);
+      
+      const success = check(response, {
+        'status is 200': (r) => r.status === 200,
+        'response time < 2000ms': (r) => r.timings.duration < 2000,
+        'has correlation ID': (r) => r.headers['X-Correlation-ID'] === correlationId,
+      });
+      
+      if (!success) {
+        rest_failed.add(1);
+      } else {
+        rest_failed.add(0);
+      }
+    }
+
+  k6-grpc-500tps.js: |
+    import grpc from 'k6/net/grpc';
+    import { check, sleep } from 'k6';
+    import { Rate, Trend } from 'k6/metrics';
+
+    export const grpc_duration = new Trend('grpc_duration');
+    export const grpc_failed = new Rate('grpc_failed');
+
+    const client = new grpc.Client();
+    client.load(['definitions'], 'payload.proto');
+
+    export const options = {
+      scenarios: {
+        constant_load: {
+          executor: 'constant-arrival-rate',
+          rate: 500,
+          timeUnit: '1s',
+          duration: '60s',
+          preAllocatedVUs: 30,
+          maxVUs: 150,
+        },
+      },
+      thresholds: {
+        grpc_req_duration: ['p(95)<2000'],
+        grpc_failed: ['rate<0.1'],
+      },
+    };
+
+    export default function () {
+      client.connect('34.126.192.30:6565', {
+        plaintext: true,
+      });
+
+      const correlationId = `corr-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+      
+      const payload = {
+        id: `grpc-${__VU}-${__ITER}`,
+        content: `High load test message ${__ITER}`,
+        timestamp: new Date().toISOString(),
+        protocol: 'gRPC'
+      };
+
+      const metadata = {
+        'x-correlation-id': correlationId,
+      };
+
+      const start = Date.now();
+      const response = client.invoke('PayloadService/SendPayload', payload, { metadata });
+      const duration = Date.now() - start;
+      
+      grpc_duration.add(duration);
+
+      const success = check(response, {
+        'gRPC status is OK': (r) => r.status === grpc.StatusOK,
+        'response time < 2000ms': (r) => duration < 2000,
+        'has correlation ID': (r) => r.metadata && r.metadata['x-correlation-id'] && r.metadata['x-correlation-id'][0] === correlationId,
+      });
+
+      if (!success) {
+        grpc_failed.add(1);
+      } else {
+        grpc_failed.add(0);
+      }
+
+      client.close();
+    } 

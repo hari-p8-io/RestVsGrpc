@@ -1,0 +1,12 @@
+FROM grafana/k6:latest
+
+# Copy all test scripts
+COPY k6-rest-*.js /scripts/
+COPY k6-grpc-*.js /scripts/
+COPY payload.proto /scripts/payload.proto
+
+# Set working directory
+WORKDIR /scripts
+
+# Default command
+CMD ["run", "/scripts/k6-rest-cluster.js"] 

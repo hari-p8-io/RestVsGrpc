@@ -1,0 +1,21 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: k6-rest-ramp-loadtest-gke
+spec:
+  template:
+    spec:
+      containers:
+      - name: k6
+        image: australia-southeast2-docker.pkg.dev/silent-oxide-210505/rest-grpc-repo/k6-loadtest:latest
+        imagePullPolicy: Always
+        command: ["k6", "run", "k6-rest-cluster.js"]
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "1000m"
+      restartPolicy: Never
+  backoffLimit: 1
