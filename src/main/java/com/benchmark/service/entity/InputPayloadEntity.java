@@ -1,34 +1,27 @@
 package com.benchmark.service.entity;
 
-import jakarta.persistence.*;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import com.google.cloud.spring.data.spanner.core.mapping.Table;
+import com.google.cloud.spring.data.spanner.core.mapping.PrimaryKey;
+import java.time.Instant;
 
-@Entity
 @Table(name = "input_payload")
 public class InputPayloadEntity {
-    @Id
+    @PrimaryKey
     private String id;
-    private String name;
-    private String email;
-    private int age;
-    private LocalDate createdDate;
-    private LocalDateTime updatedDate;
-    private LocalDate birthDate;
+    private String content;
+    private Instant timestamp;
+    private String protocol;
 
     // Getters and setters
     public String getId() { return id; }
     public void setId(String id) { this.id = id; }
-    public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
-    public String getEmail() { return email; }
-    public void setEmail(String email) { this.email = email; }
-    public int getAge() { return age; }
-    public void setAge(int age) { this.age = age; }
-    public LocalDate getCreatedDate() { return createdDate; }
-    public void setCreatedDate(LocalDate createdDate) { this.createdDate = createdDate; }
-    public LocalDateTime getUpdatedDate() { return updatedDate; }
-    public void setUpdatedDate(LocalDateTime updatedDate) { this.updatedDate = updatedDate; }
-    public LocalDate getBirthDate() { return birthDate; }
-    public void setBirthDate(LocalDate birthDate) { this.birthDate = birthDate; }
+    
+    public String getContent() { return content; }
+    public void setContent(String content) { this.content = content; }
+    
+    public Instant getTimestamp() { return timestamp; }
+    public void setTimestamp(Instant timestamp) { this.timestamp = timestamp; }
+    
+    public String getProtocol() { return protocol; }
+    public void setProtocol(String protocol) { this.protocol = protocol; }
 }

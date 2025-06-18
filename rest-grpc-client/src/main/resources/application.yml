@@ -1,0 +1,36 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: rest-grpc-client
+
+# Target service configuration
+rest:
+  server:
+    host: localhost
+    port: 8080
+
+grpc:
+  server:
+    host: localhost
+    port: 6565
+
+# Logging configuration
+logging:
+  level:
+    com.benchmark.client: INFO
+    io.grpc: INFO
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: always 

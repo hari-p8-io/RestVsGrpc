@@ -1,0 +1,44 @@
+server:
+  port: 9090
+
+spring:
+  application:
+    name: rest-grpc-client
+
+# Target service configuration for Kubernetes
+rest:
+  server:
+    host: ${MAIN_SERVICE_HOST:rest-grpc-service}
+    port: ${MAIN_SERVICE_PORT:8080}
+
+grpc:
+  server:
+    host: ${GRPC_SERVICE_HOST:rest-grpc-service}
+    port: ${GRPC_SERVICE_PORT:6565}
+
+# Logging configuration
+logging:
+  level:
+    com.benchmark.client: INFO
+    io.grpc: INFO
+    org.springframework: WARN
+    org.apache.kafka: WARN
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %msg%n"
+    file: "%d{yyyy-MM-dd HH:mm:ss} [%thread] %-5level %logger{36} - %msg%n"
+
+# Management endpoints
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+    prometheus:
+      enabled: true
+  metrics:
+    export:
+      prometheus:
+        enabled: true 

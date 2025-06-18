@@ -1,55 +1,62 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: rest-grpc-camel
+  name: rest-grpc-service
+  labels:
+    app: rest-grpc-service
 spec:
-  replicas: 2
+  replicas: 1
   selector:
     matchLabels:
-      app: rest-grpc-camel
+      app: rest-grpc-service
   template:
     metadata:
       labels:
-        app: rest-grpc-camel
+        app: rest-grpc-service
     spec:
+      serviceAccountName: rest-grpc-sa
       containers:
-      - name: rest-grpc-camel
-        image: REGION-docker.pkg.dev/PROJECT_ID/my-repo/rest-grpc-camel-service:latest
+      - name: rest-grpc-service
+        image: australia-southeast2-docker.pkg.dev/silent-oxide-210505/rest-grpc-repo/rest-grpc-service:v1.0.1
+        imagePullPolicy: Always
         ports:
         - containerPort: 8080
+          name: http
         - containerPort: 6565
+          name: grpc
         env:
-        - name: SPRING_CLOUD_GCP_SPANNER_INSTANCE_ID
-          value: "YOUR_INSTANCE"
-        - name: SPRING_CLOUD_GCP_SPANNER_DATABASE
-          value: "YOUR_DB"
-        - name: SPRING_CLOUD_GCP_SPANNER_PROJECT_ID
-          value: "YOUR_PROJECT"
-        - name: SPRING_CLOUD_GCP_SPANNER_CREDENTIALS_LOCATION
-          value: "/etc/gcp/credentials.json"
-        - name: CAMEL_COMPONENT_KAFKA_BROKERS
-          value: "YOUR_KAFKA_BROKER:9092"
+        - name: SPRING_PROFILES_ACTIVE
+          value: "k8s"
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: "/var/secrets/google/key.json"
         volumeMounts:
-        - name: gcp-creds
-          mountPath: /etc/gcp
+        - name: gcp-sa-key
+          mountPath: "/var/secrets/google"
           readOnly: true
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /camel/api/health
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /camel/api/health
+            port: 8080
+          initialDelaySeconds: 75
+          periodSeconds: 10
+          timeoutSeconds: 8
+          failureThreshold: 5
       volumes:
-      - name: gcp-creds
+      - name: gcp-sa-key
         secret:
-          secretName: gcp-credentials
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: rest-grpc-camel
-spec:
-  type: LoadBalancer
-  selector:
-    app: rest-grpc-camel
-  ports:
-  - port: 8080
-    targetPort: 8080
-    name: http
-  - port: 6565
-    targetPort: 6565
-    name: grpc
+          secretName: gcp-sa-key 

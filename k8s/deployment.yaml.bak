@@ -1,0 +1,51 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rest-grpc-service
+  labels:
+    app: rest-grpc-service
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rest-grpc-service
+  template:
+    metadata:
+      labels:
+        app: rest-grpc-service
+    spec:
+      containers:
+      - name: rest-grpc-service
+        image: australia-southeast2-docker.pkg.dev/silent-oxide-210505/rest-grpc-repo/rest-grpc-service:latest
+        imagePullPolicy: Always
+        ports:
+        - containerPort: 8080
+          name: http
+        - containerPort: 6565
+          name: grpc
+        env:
+        - name: SPRING_PROFILES_ACTIVE
+          value: "k8s"
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 90
+          periodSeconds: 15
+          timeoutSeconds: 10
+          failureThreshold: 5
+        readinessProbe:
+          httpGet:
+            path: /actuator/health
+            port: 8080
+          initialDelaySeconds: 75
+          periodSeconds: 10
+          timeoutSeconds: 8
+          failureThreshold: 5 
